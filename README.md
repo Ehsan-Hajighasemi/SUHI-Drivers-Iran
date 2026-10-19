@@ -32,6 +32,13 @@ This repository implements an integrated multi-method framework across **1,109 I
 SUHI-Drivers-Iran/
 ├── data/
 │   └── README.md                       # Variable definitions and urban-suburban contrast (Δ) schema
+├── gee/
+│   ├── 01_extract_modis_lst.js         # Stage 1a: MODIS Aqua MYD11A1 daytime/nighttime LST extraction
+│   ├── 02_extract_landsat_ndvi.js      # Stage 1b: Landsat C2 L2 30 m annual & monthly NDVI composites
+│   ├── 03_extract_era5_meteorology.js  # Stage 1c: ERA5-Land meteorological variables (TMP, WS, Pre, ET)
+│   ├── 04_extract_ghsl_morphology_pop.js # Stage 1d: JRC GHSL 3D urban morphology (BH, BS, BV) & population
+│   ├── 05_extract_dem_gdp_treecover.js # Stage 1e: GTOPO30 DEM, Gridded GDP, and ESA WorldCover tree cover
+│   └── README.md                       # GEE data collection documentation
 ├── results/
 │   ├── figures/                        # Publication-ready heatmaps, boxplots, and spatial maps (400 DPI)
 │   ├── geodetector/                    # Geodetector q-statistics, FDR p-values, and sensitivity matrices
