@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software or analytical framework in your research, please cite our study."
+title: "Surface Urban Heat Island Dynamics and Multidimensional Drivers: A National-Scale Study of 1,109 Iranian Cities"
+version: 1.0.0
+date-released: 2026-10-01
+license: MIT
+repository-code: "https://github.com/Ehsan-Hajighasemi/SUHI-Drivers-Iran"
+authors:
+  - family-names: "Paydar"
+    given-names: "Alireza"
+    affiliation: "Graduate Faculty of Environment, University of Tehran, Tehran, Iran"
+  - family-names: "Hajighasemi"
+    given-names: "Ehsan"
+    affiliation: "Graduate Faculty of Environment, University of Tehran, Tehran, Iran"
+  - family-names: "Farhadi"
+    given-names: "Mohammad"
+    affiliation: "Graduate Faculty of Environment, University of Tehran, Tehran, Iran"
+  - family-names: "Karimi Firozjaei"
+    given-names: "Mohammad"
+    affiliation: "College of Management, University of Tehran, Tehran, Iran"
