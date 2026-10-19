@@ -532,3 +532,364 @@ def plot_xgboost_shap_heatmaps(
             font_family=font_family,
             dpi=dpi,
         )
+# ==============================================================================
+# 4. MGWR Local Coefficient Boxplots (Figure 8 & Supplementary Figures S3-S5)
+# ==============================================================================
+def _load_mgwr_panel_coefs(climate_dir: Path, season: str, period: str) -> pd.DataFrame:
+    matches = list(climate_dir.glob(f"mgwr_local_*_{season}_{period}.csv"))
+    if not matches:
+        return pd.DataFrame()
+
+    df = pd.read_csv(matches[0], encoding="utf-8-sig")
+    coef_cols = [c for c in df.columns if c.startswith("coef_") and c != "coef_Intercept"]
+    df_coef = df[coef_cols].copy()
+
+    renames = {
+        c: c.replace("coef_", "").replace(f"_{season}", "").replace("VS", "WS")
+        for c in coef_cols
+    }
+    return df_coef.rename(columns=renames)
+
+
+def plot_mgwr_boxplots_annual(
+    mgwr_climate_dir: Union[str, Path],
+    output_dir: Union[str, Path],
+    font_family: str = "Arial",
+    dpi: int = 400,
+) -> None:
+    """
+    Generate 2x3 grid of annual MGWR local regression coefficient boxplots
+    (Day/Night x Arid/Semi-arid/Humid) corresponding to Figure 8.
+    """
+    base_dir = Path(mgwr_climate_dir)
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    y_order_rev = DRIVER_DISPLAY_ORDER[::-1]
+    y_labels_rev = _get_formatted_y_labels()[::-1]
+
+    cmap = plt.get_cmap("coolwarm")
+    norm = mcolors.Normalize(vmin=-0.5, vmax=0.5)
+
+    fig, axes = plt.subplots(2, 3, figsize=(28, 16), sharey=True, sharex=True)
+    fig.subplots_adjust(wspace=0.05, hspace=0.08)
+
+    for row_idx, period in enumerate(("Day", "Night")):
+        for col_idx, climate in enumerate(CLIMATE_ZONES):
+            ax = axes[row_idx, col_idx]
+            df_panel = _load_mgwr_panel_coefs(base_dir / climate, "Annual", period)
+
+            if df_panel.empty:
+                ax.set_visible(False)
+                continue
+
+            data_to_plot, mean_values = [], []
+            for var in y_order_rev:
+                if var in df_panel.columns:
+                    vals = df_panel[var].dropna().values
+                    if len(vals) > 0:
+                        data_to_plot.append(vals)
+                        mean_values.append(float(np.mean(vals)))
+                    else:
+                        data_to_plot.append([np.nan])
+                        mean_values.append(np.nan)
+                else:
+                    data_to_plot.append([np.nan])
+                    mean_values.append(np.nan)
+
+            bp = ax.boxplot(
+                data_to_plot,
+                orientation="horizontal",
+                patch_artist=True,
+                showmeans=True,
+                widths=0.8,
+                flierprops=dict(marker="o", markerfacecolor="black", markersize=3, linestyle="none", markeredgecolor="none", alpha=0.7),
+                medianprops=dict(color="black", linewidth=2.5),
+                whiskerprops=dict(color="black", linewidth=1.5),
+                capprops=dict(color="black", linewidth=1.5),
+                meanprops=dict(marker="o", markerfacecolor="black", markeredgecolor="black", markersize=6),
+            )
+
+            for patch, mean_val in zip(bp["boxes"], mean_values):
+                if pd.notna(mean_val):
+                    patch.set_facecolor(cmap(norm(mean_val)))
+                    patch.set_linewidth(1.5)
+                    patch.set_edgecolor("black")
+                else:
+                    patch.set_facecolor("white")
+                    patch.set_edgecolor("none")
+
+    for row_idx in range(2):
+        for col_idx in range(3):
+            ax = axes[row_idx, col_idx]
+            ax.axvline(x=0, color="black", linestyle="--", linewidth=1.0, alpha=0.7)
+            ax.grid(axis="y", linestyle="--", linewidth=0.5, color="gray", alpha=0.5)
+            ax.set_xlim(-1.5, 1.5)
+            ax.set_xticks([-1.0, -0.5, 0.0, 0.5, 1.0])
+
+            show_x = row_idx == 1
+            ax.tick_params(axis="x", which="major", bottom=True, labelbottom=show_x, direction="out", length=6, width=1.2, labelsize=18)
+            show_y = col_idx == 0
+            ax.tick_params(axis="y", which="major", left=True, labelleft=show_y, direction="out", length=6, width=1.2, labelsize=19)
+            if show_x:
+                ax.set_xlabel("Local regression coefficient", fontsize=22, fontname=font_family, labelpad=10)
+
+        axes[row_idx, 0].set_yticks(np.arange(1, len(y_order_rev) + 1))
+        axes[row_idx, 0].set_yticklabels(y_labels_rev, fontname=font_family, fontsize=19)
+
+    for ext in ("png", "jpg"):
+        fig.savefig(out_dir / f"Fig8_MGWR_Boxplots_Annual_Main.{ext}", dpi=dpi, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+    fig_cbar = plt.figure(figsize=(14, 1.5))
+    cbar_ax = fig_cbar.add_axes([0.05, 0.4, 0.9, 0.2])
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig_cbar.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+    cbar.set_label("Average local regression coefficient", fontsize=27, fontname=font_family, weight="bold", labelpad=10)
+    cbar.ax.tick_params(labelsize=25)
+    cbar.set_ticks([-0.4, -0.2, 0.0, 0.2, 0.4])
+
+    for ext in ("png", "jpg"):
+        fig_cbar.savefig(out_dir / f"Fig8_MGWR_Boxplots_Annual_Colorbar.{ext}", dpi=dpi, bbox_inches="tight", facecolor="white")
+    plt.close(fig_cbar)
+
+
+def plot_mgwr_boxplots_seasonal(
+    mgwr_climate_dir: Union[str, Path],
+    output_dir: Union[str, Path],
+    font_family: str = "Arial",
+    dpi: int = 400,
+) -> None:
+    """
+    Generate 2x4 seasonal MGWR boxplot grids (Day/Night x Winter/Spring/Summer/Autumn)
+    for each climatic zone (Supplementary Figures S3-S5).
+    """
+    base_dir = Path(mgwr_climate_dir)
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    y_order_rev = DRIVER_DISPLAY_ORDER[::-1]
+    y_labels_rev = _get_formatted_y_labels()[::-1]
+    seasons_four = ["Winter", "Spring", "Summer", "Autumn"]
+
+    cmap = plt.get_cmap("coolwarm")
+    norm = mcolors.Normalize(vmin=-0.5, vmax=0.5)
+
+    for climate in CLIMATE_ZONES:
+        clim_dir = base_dir / climate
+        if not clim_dir.exists():
+            continue
+
+        fig, axes = plt.subplots(2, 4, figsize=(28, 16), sharey=True, sharex=True)
+        fig.subplots_adjust(wspace=0.05, hspace=0.08)
+
+        for row_idx, period in enumerate(("Day", "Night")):
+            for col_idx, season in enumerate(seasons_four):
+                ax = axes[row_idx, col_idx]
+                df_panel = _load_mgwr_panel_coefs(clim_dir, season, period)
+
+                if df_panel.empty:
+                    ax.set_visible(False)
+                    continue
+
+                data_to_plot, mean_values = [], []
+                for var in y_order_rev:
+                    if var in df_panel.columns:
+                        vals = df_panel[var].dropna().values
+                        if len(vals) > 0:
+                            data_to_plot.append(vals)
+                            mean_values.append(float(np.mean(vals)))
+                        else:
+                            data_to_plot.append([np.nan])
+                            mean_values.append(np.nan)
+                    else:
+                        data_to_plot.append([np.nan])
+                        mean_values.append(np.nan)
+
+                bp = ax.boxplot(
+                    data_to_plot,
+                    orientation="horizontal",
+                    patch_artist=True,
+                    showmeans=True,
+                    widths=0.8,
+                    flierprops=dict(marker="o", markerfacecolor="black", markersize=3, linestyle="none", markeredgecolor="none", alpha=0.7),
+                    medianprops=dict(color="black", linewidth=2.5),
+                    whiskerprops=dict(color="black", linewidth=1.5),
+                    capprops=dict(color="black", linewidth=1.5),
+                    meanprops=dict(marker="o", markerfacecolor="black", markeredgecolor="black", markersize=6),
+                )
+
+                for patch, mean_val in zip(bp["boxes"], mean_values):
+                    if pd.notna(mean_val):
+                        patch.set_facecolor(cmap(norm(mean_val)))
+                        patch.set_linewidth(1.5)
+                        patch.set_edgecolor("black")
+                    else:
+                        patch.set_facecolor("white")
+                        patch.set_edgecolor("none")
+
+        for row_idx in range(2):
+            for col_idx in range(4):
+                ax = axes[row_idx, col_idx]
+                ax.axvline(x=0, color="black", linestyle="--", linewidth=1.0, alpha=0.7)
+                ax.grid(axis="y", linestyle="--", linewidth=0.5, color="gray", alpha=0.5)
+                ax.set_xlim(-1.5, 1.5)
+                ax.set_xticks([-1.0, -0.5, 0.0, 0.5, 1.0])
+
+                show_x = row_idx == 1
+                ax.tick_params(axis="x", which="major", bottom=True, labelbottom=show_x, direction="out", length=6, width=1.2, labelsize=18)
+                show_y = col_idx == 0
+                ax.tick_params(axis="y", which="major", left=True, labelleft=show_y, direction="out", length=6, width=1.2, labelsize=19)
+                if show_x:
+                    ax.set_xlabel("Local regression coefficient", fontsize=22, fontname=font_family, labelpad=10)
+
+            axes[row_idx, 0].set_yticks(np.arange(1, len(y_order_rev) + 1))
+            axes[row_idx, 0].set_yticklabels(y_labels_rev, fontname=font_family, fontsize=19)
+
+        for ext in ("png", "jpg"):
+            fig.savefig(out_dir / f"FigS_MGWR_Boxplots_Seasonal_{climate}_Main.{ext}", dpi=dpi, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+
+
+# ==============================================================================
+# 5. MGWR Spatial Coefficient Maps (Figure 9 & Supplementary Figure S6)
+# ==============================================================================
+def plot_mgwr_spatial_maps(
+    spatial_tables_dir: Union[str, Path],
+    output_dir: Union[str, Path],
+    iran_shapefile: Optional[Union[str, Path]] = None,
+    font_family: str = "Arial",
+    dpi: int = 400,
+) -> None:
+    """
+    Generate 3x3 spatial distribution maps of annual MGWR local regression
+    coefficients for top daytime (Figure 9) and nighttime (Figure S6) drivers.
+    """
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    from matplotlib.patches import Rectangle
+
+    tables_dir = Path(spatial_tables_dir)
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    df_list = []
+    for clim in CLIMATE_ZONES:
+        f_path = tables_dir / f"ArcMap_Data_{clim}.csv"
+        if f_path.exists():
+            t_df = pd.read_csv(f_path, encoding="utf-8-sig")
+            t_df["Climate_Class"] = clim
+            df_list.append(t_df)
+
+    if not df_list:
+        return
+    df = pd.concat(df_list, ignore_index=True)
+
+    iran_gdf = None
+    if iran_shapefile and Path(iran_shapefile).exists():
+        iran_gdf = gpd.read_file(iran_shapefile).to_crs(epsg=4326)
+
+    scenarios = {
+        "Day": ["ΔNDVI", "ΔGDP", "ΔDEM"],
+        "Night": ["ΔNDVI", "LSI", "ΔGDP"],
+    }
+
+    y_ticks_dec = [27.0, 31.5, 36.0]
+    y_ticks_labels = ['27°0\'0"N', '31°30\'0"N', '36°0\'0"N']
+    x_ticks_dec = [45.25, 52.758333, 60.266666]
+    x_ticks_labels = ['45°15\'0"E', '52°45\'30"E', '60°16\'0"E']
+
+    for time_of_day, target_features in scenarios.items():
+        target_cols = [f"coef_{feat}_Annual_{time_of_day}" for feat in target_features]
+        available_cols = [c for c in target_cols if c in df.columns]
+        if not available_cols:
+            continue
+
+        all_vals = df[available_cols].values.flatten()
+        all_vals = all_vals[~pd.isna(all_vals)]
+        vmax_raw = float(np.max(np.abs(all_vals)))
+        vmax_stretch = float(np.percentile(np.abs(all_vals), 90))
+
+        fig, axes = plt.subplots(
+            nrows=3, ncols=3, figsize=(18, 15), subplot_kw={"projection": ccrs.PlateCarree()}
+        )
+        plt.subplots_adjust(wspace=0.01, hspace=0.05)
+
+        for i, feature_col in enumerate(target_cols):
+            for j, climate in enumerate(CLIMATE_ZONES):
+                ax = axes[i, j]
+                ax.set_extent([44, 64, 25, 40], crs=ccrs.PlateCarree())
+                ax.set_aspect("auto")
+                ax.add_feature(cfeature.LAND, facecolor="white", zorder=0)
+                ax.add_feature(cfeature.OCEAN, facecolor="#87CEFA", zorder=1)
+
+                if iran_gdf is not None:
+                    iran_gdf.plot(ax=ax, facecolor="none", edgecolor="black", linewidth=1.0, zorder=2)
+                else:
+                    ax.add_feature(cfeature.BORDERS, edgecolor="black", linewidth=1.0, zorder=2)
+                    ax.add_feature(cfeature.COASTLINE, edgecolor="black", linewidth=0.8, zorder=2)
+
+                subset = df[df["Climate_Class"] == climate]
+                if feature_col in subset.columns:
+                    ax.scatter(
+                        subset["long"],
+                        subset["lat"],
+                        c=subset[feature_col],
+                        cmap=plt.cm.coolwarm,
+                        vmin=-vmax_stretch,
+                        vmax=vmax_stretch,
+                        s=30,
+                        edgecolor="none",
+                        zorder=3,
+                        transform=ccrs.PlateCarree(),
+                    )
+
+                ax.text(51.5, 38.6, "Caspian Sea", transform=ccrs.PlateCarree(), ha="center", va="center", fontsize=13, fontweight="bold", fontname=font_family, zorder=4)
+                ax.text(51.5, 26.9, "Persian Gulf", transform=ccrs.PlateCarree(), ha="center", va="center", fontsize=13, fontweight="bold", fontname=font_family, rotation=-35, zorder=4)
+
+                ax.text(0.92, 0.84, "N", transform=ax.transAxes, ha="center", va="center", fontsize=16, fontweight="bold", fontname=font_family, zorder=5)
+                ax.plot(0.92, 0.92, marker="^", color="black", markersize=18, transform=ax.transAxes, zorder=5, clip_on=False)
+
+                rect = Rectangle((44.5, 25.5), width=4.0, height=0.3, facecolor="black", edgecolor="black", transform=ccrs.PlateCarree(), zorder=5)
+                ax.add_patch(rect)
+                ax.text(46.5, 26.0, "400", transform=ccrs.PlateCarree(), ha="center", va="bottom", fontsize=12, fontweight="bold", fontname=font_family, zorder=5)
+                ax.text(48.7, 25.65, "km", transform=ccrs.PlateCarree(), ha="left", va="center", fontsize=12, fontweight="bold", fontname=font_family, zorder=5)
+
+                ax.set_xticks(x_ticks_dec, crs=ccrs.PlateCarree())
+                ax.set_yticks(y_ticks_dec, crs=ccrs.PlateCarree())
+                ax.tick_params(axis="both", which="major", width=1.5, length=5.0, direction="out", top=True, bottom=False, left=True, right=False)
+
+                if j == 0:
+                    ax.set_yticklabels(y_ticks_labels, fontsize=14, fontweight="bold", fontname=font_family, rotation=90, va="center")
+                else:
+                    ax.set_yticklabels([])
+
+                ax.xaxis.tick_top()
+                if i == 0:
+                    ax.set_xticklabels(x_ticks_labels, fontsize=14, fontweight="bold", fontname=font_family)
+                else:
+                    ax.set_xticklabels([])
+
+                for spine in ax.spines.values():
+                    spine.set_edgecolor("black")
+                    spine.set_linewidth(1.5)
+
+        for ext in ("png", "jpg"):
+            fig.savefig(out_dir / f"Fig9_MGWR_Spatial_{time_of_day}_Main.{ext}", dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+
+        fig_cb = plt.figure(figsize=(12, 1.5))
+        ax_cb = fig_cb.add_axes([0.05, 0.4, 0.9, 0.21])
+        norm = mcolors.Normalize(vmin=-vmax_stretch, vmax=vmax_stretch)
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.coolwarm)
+        sm.set_array([])
+        cb = fig_cb.colorbar(sm, cax=ax_cb, orientation="horizontal", extend="both")
+        cb.set_label("MGWR Local Regression Coefficients", fontsize=20, fontname=font_family, fontweight="bold", labelpad=10)
+        cb.ax.tick_params(labelsize=20)
+        cb.set_ticks([-vmax_stretch, 0, vmax_stretch])
+        cb.set_ticklabels([f"{-vmax_raw:.3f}", "0", f"{vmax_raw:.3f}"])
+
+        for ext in ("png", "jpg"):
+            fig_cb.savefig(out_dir / f"Fig9_MGWR_Spatial_{time_of_day}_Colorbar.{ext}", dpi=dpi, bbox_inches="tight", facecolor="white")
+        plt.close(fig_cb)
