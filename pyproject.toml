@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "suhi-drivers-iran"
+version = "1.0.0"
+description = "Integrated Geodetector, XGBoost-SHAP, and MGWR framework for national-scale Surface Urban Heat Island (SUHI) driver analysis across 1,109 Iranian cities."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [
+    { name = "Alireza Paydar", email = "alireza.paydar@ut.ac.ir" },
+    { name = "Ehsan Hajighasemi", email = "ehsanhajighasemi@ut.ac.ir" },
+    { name = "Mohammad Farhadi", email = "mohammad.farhadi@ut.ac.ir" },
+    { name = "Mohammad Karimi Firozjaei", email = "mohammad.karimi.f@ut.ac.ir" }
+]
+keywords = [
+    "surface-urban-heat-island",
+    "geodetector",
+    "xgboost",
+    "shap",
+    "mgwr",
+    "urban-morphology",
+    "spatial-heterogeneity"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
