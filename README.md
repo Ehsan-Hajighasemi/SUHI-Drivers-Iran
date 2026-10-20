@@ -1,6 +1,7 @@
 # Surface Urban Heat Island Dynamics and Multidimensional Drivers: A National-Scale Study of 1,109 Iranian Cities
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![GEE JavaScript](https://img.shields.io/badge/Google%20Earth%20Engine-JavaScript-34A853.svg)](https://earthengine.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Spatial Scale](https://img.shields.io/badge/Cities-1%2C109%20Iranian%20Cities-orange.svg)](#overview)
 [![Models](https://img.shields.io/badge/Framework-Geodetector%20%7C%20XGBoost--SHAP%20%7C%20MGWR-informational.svg)](#overview)
